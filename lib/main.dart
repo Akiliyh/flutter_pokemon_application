@@ -1,7 +1,40 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
+}
+
+Future<Pokemon> fetchPokemon() async {
+  final response = await http.get(
+    Uri.parse('https://pokeapi.co/api/v2/pokemon/2/'),
+  );
+
+  if (response.statusCode == 200) {
+    // If the server did return a 200 OK response,
+    // then parse the JSON.
+    return Pokemon.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  } else {
+    // If the server did not return a 200 OK response,
+    // then throw an exception.
+    throw Exception('Failed to load pokemon');
+  }
+}
+
+class Pokemon {
+  final int id;
+  final String name;
+
+  const Pokemon({required this.id, required this.name});
+
+  factory Pokemon.fromJson(Map<String, dynamic> json) {
+    return switch (json) {
+      {'id': int id, 'name': String name} => Pokemon(id: id, name: name),
+      _ => throw const FormatException('Failed to load pokemon.'),
+    };
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -11,7 +44,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Pokemon app',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -30,7 +63,7 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: .fromSeed(seedColor: Colors.green),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Pokemon Application'),
     );
   }
 }
@@ -54,7 +87,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  late Future<Pokemon> futurePokemon;
   int _counter = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    futurePokemon = fetchPokemon();
+  }
 
   void _incrementCounter() {
     setState(() {
@@ -105,6 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: .center,
           children: [
             const Text('You have pushed the button this many times:'),
+            PokeCard(futurePokemon: futurePokemon),
             Text(
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
@@ -116,6 +157,61 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: _incrementCounter,
         tooltip: 'Increment',
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class PokeCard extends StatelessWidget {
+  final Future<Pokemon> futurePokemon;
+  const PokeCard({super.key, required this.futurePokemon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56, // in logical pixels
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(color: Colors.blue[500]),
+      // Row is a horizontal, linear layout.
+      child: Row(
+        children: [
+          const IconButton(
+            icon: Icon(Icons.menu),
+            tooltip: 'Navigation menu',
+            onPressed: null, // null disables the button
+          ),
+          Expanded(
+            child: FutureBuilder<Pokemon>(
+              future: futurePokemon,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Text(
+                    snapshot.data!.name,
+                    style: const TextStyle(color: Colors.white),
+                  );
+                } else if (snapshot.hasError) {
+                  return Text(
+                    'Error',
+                    style: const TextStyle(color: Colors.red),
+                  );
+                }
+                return const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          const IconButton(
+            icon: Icon(Icons.search),
+            tooltip: 'Search',
+            onPressed: null,
+          ),
+        ],
       ),
     );
   }
