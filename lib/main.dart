@@ -23,17 +23,43 @@ Future<Pokemon> fetchPokemon() async {
   }
 }
 
+Future<List<Pokemon>> fetchAllPokemonDetails() async {
+  final listResponse = await http.get(
+    Uri.parse('https://pokeapi.co/api/v2/pokemon?limit=2000'),
+  );
+
+  if (listResponse.statusCode != 200) {
+    throw Exception('Failed to load pokemon list');
+  }
+
+  final data = jsonDecode(listResponse.body);
+  final List results = data['results'];
+
+  final pokemons = await Future.wait(
+    results.map((item) async {
+      final detailResponse = await http.get(Uri.parse(item['url']));
+      return Pokemon.fromJson(jsonDecode(detailResponse.body));
+    }),
+  );
+
+  return pokemons;
+}
+
 class Pokemon {
   final int id;
   final String name;
+  final String imageUrl;
 
-  const Pokemon({required this.id, required this.name});
+  const Pokemon({required this.id, required this.name, required this.imageUrl});
 
   factory Pokemon.fromJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {'id': int id, 'name': String name} => Pokemon(id: id, name: name),
-      _ => throw const FormatException('Failed to load pokemon.'),
-    };
+    return Pokemon(
+      id: json['id'],
+      name: json['name'],
+      imageUrl:
+          json['sprites']['front_default'] ??
+          'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${json['id']}.png',
+    );
   }
 }
 
@@ -88,23 +114,13 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late Future<Pokemon> futurePokemon;
-  int _counter = 0;
+  late Future<List<Pokemon>> futurePokemons;
 
   @override
   void initState() {
     super.initState();
     futurePokemon = fetchPokemon();
-  }
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter--;
-    });
+    futurePokemons = fetchAllPokemonDetails();
   }
 
   @override
@@ -144,27 +160,44 @@ class _MyHomePageState extends State<MyHomePage> {
           // wireframe for each widget.
           mainAxisAlignment: .center,
           children: [
-            const Text('You have pushed the button this many times:'),
-            PokeCard(futurePokemon: futurePokemon),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const IconButton(
+              icon: Icon(Icons.search),
+              tooltip: 'Search',
+              onPressed: null,
+            ),
+            Expanded(
+              child: FutureBuilder<List<Pokemon>>(
+                future: futurePokemons, // cached in initState
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+
+                  final pokemons = snapshot.data!;
+
+                  return ListView.builder(
+                    itemCount: pokemons.length,
+                    itemBuilder: (context, index) {
+                      return PokeCard(pokemon: pokemons[index]);
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
 }
 
 class PokeCard extends StatelessWidget {
-  final Future<Pokemon> futurePokemon;
-  const PokeCard({super.key, required this.futurePokemon});
+  final Pokemon pokemon;
+  const PokeCard({super.key, required this.pokemon});
 
   @override
   Widget build(BuildContext context) {
@@ -175,41 +208,31 @@ class PokeCard extends StatelessWidget {
       // Row is a horizontal, linear layout.
       child: Row(
         children: [
-          const IconButton(
-            icon: Icon(Icons.menu),
-            tooltip: 'Navigation menu',
-            onPressed: null, // null disables the button
-          ),
-          Expanded(
-            child: FutureBuilder<Pokemon>(
-              future: futurePokemon,
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  return Text(
-                    snapshot.data!.name,
-                    style: const TextStyle(color: Colors.white),
-                  );
-                } else if (snapshot.hasError) {
-                  return Text(
-                    'Error',
-                    style: const TextStyle(color: Colors.red),
-                  );
-                }
-                return const Center(
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                );
-              },
-            ),
+          Image.network(
+            pokemon.imageUrl,
+            width: 56,
+            height: 56,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.image_not_supported);
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const SizedBox(
+                width: 56,
+                height: 56,
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              );
+            },
           ),
 
-          const IconButton(
-            icon: Icon(Icons.search),
-            tooltip: 'Search',
-            onPressed: null,
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Text(
+              pokemon.name,
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
