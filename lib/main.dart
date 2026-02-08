@@ -33,8 +33,14 @@ class Pokemon {
   final int id;
   final String name;
   final String imageUrl;
+  final bool isFavorited;
 
-  const Pokemon({required this.id, required this.name, required this.imageUrl});
+  const Pokemon({
+    required this.id,
+    required this.name,
+    required this.imageUrl,
+    required this.isFavorited,
+  });
 
   factory Pokemon.fromJson(Map<String, dynamic> json) {
     return Pokemon(
@@ -42,7 +48,10 @@ class Pokemon {
       name: json['name'],
       imageUrl:
           json['sprites']['front_default'] ??
-          'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${json['id']}.png',
+          "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/" +
+              json['id'].toString() +
+              ".png",
+      isFavorited: false,
     );
   }
 }
@@ -55,9 +64,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Pokemon app',
-      theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.green),
-      ),
+      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.green)),
       home: const MyHomePage(title: 'Pokemon Application'),
     );
   }
@@ -76,6 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late TextEditingController _searchController;
   List<Pokemon> _allPokemons = [];
   List<Pokemon> _filteredPokemons = [];
+  List<Pokemon> _likedPokemons = [];
   late Future<List<Pokemon>> futurePokemons;
 
   @override
@@ -85,23 +93,53 @@ class _MyHomePageState extends State<MyHomePage> {
     futurePokemons = fetchAllPokemonDetails();
 
     futurePokemons.then((list) {
-    setState(() {
-      _allPokemons = list;
-      _filteredPokemons = list;
+      setState(() {
+        _allPokemons = list;
+        _filteredPokemons = list;
+      });
     });
-  });
 
-  _searchController.addListener(() {
-    filterPokemons();
-  });
-  
+    _searchController.addListener(() {
+      filterPokemons();
+    });
   }
 
   void filterPokemons() {
-  final query = _searchController.text.toLowerCase();
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredPokemons = _allPokemons.where((pokemon) {
+        return pokemon.name.toLowerCase().contains(query);
+      }).toList();
+    });
+  }
+
+  void toggleLikeCurPokemon(int id) {
   setState(() {
-    _filteredPokemons = _allPokemons.where((pokemon) {
-      return pokemon.name.toLowerCase().contains(query);
+    // we update the value of isFavorited pokemons
+    _allPokemons = _allPokemons.map((pokemon) {
+      if (pokemon.id == id) {
+        return Pokemon(
+          id: pokemon.id,
+          name: pokemon.name,
+          imageUrl: pokemon.imageUrl,
+          isFavorited: !pokemon.isFavorited,
+        );
+      }
+      return pokemon;
+    }).toList();
+
+    _likedPokemons = _allPokemons.where((pokemon) => pokemon.isFavorited).toList();
+
+    _filteredPokemons = _filteredPokemons.map((pokemon) {
+      if (pokemon.id == id) {
+        return Pokemon(
+          id: pokemon.id,
+          name: pokemon.name,
+          imageUrl: pokemon.imageUrl,
+          isFavorited: !pokemon.isFavorited,
+        );
+      }
+      return pokemon;
     }).toList();
   });
 }
@@ -109,10 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.amber,
-        title: Text(widget.title),
-      ),
+      appBar: AppBar(backgroundColor: Colors.amber, title: Text(widget.title)),
       body: Center(
         child: Column(
           mainAxisAlignment: .center,
@@ -145,7 +180,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   return ListView.builder(
                     itemCount: _filteredPokemons.length,
                     itemBuilder: (context, index) {
-                      return PokeCard(pokemon: _filteredPokemons[index]);
+                      final pokemon = _filteredPokemons[index];
+                      return PokeCard(pokemon: pokemon, onLikeToggle: () {
+                        toggleLikeCurPokemon(pokemon.id);
+                      });
                     },
                   );
                 },
@@ -160,7 +198,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
 class PokeCard extends StatelessWidget {
   final Pokemon pokemon;
-  const PokeCard({super.key, required this.pokemon});
+  final VoidCallback onLikeToggle;
+  const PokeCard({super.key, required this.pokemon, required this.onLikeToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -190,12 +229,12 @@ class PokeCard extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          Expanded(
-            child: Text(
-              pokemon.name,
-              style: const TextStyle(color: Colors.white),
-            ),
+          IconButton(
+            icon: Icon(pokemon.isFavorited ? Icons.favorite : Icons.favorite_border_outlined),
+            tooltip: 'Like',
+            onPressed: onLikeToggle,
           ),
+          Text(pokemon.name, style: const TextStyle(color: Colors.white)),
         ],
       ),
     );
