@@ -113,6 +113,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  late TextEditingController _searchController;
+  List<Pokemon> _allPokemons = [];
+  List<Pokemon> _filteredPokemons = [];
   late Future<Pokemon> futurePokemon;
   late Future<List<Pokemon>> futurePokemons;
 
@@ -120,8 +123,30 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     futurePokemon = fetchPokemon();
+    _searchController = TextEditingController();
     futurePokemons = fetchAllPokemonDetails();
+
+    futurePokemons.then((list) {
+    setState(() {
+      _allPokemons = list;
+      _filteredPokemons = list;
+    });
+  });
+
+  _searchController.addListener(() {
+    filterPokemons();
+  });
+  
   }
+
+  void filterPokemons() {
+  final query = _searchController.text.toLowerCase();
+  setState(() {
+    _filteredPokemons = _allPokemons.where((pokemon) {
+      return pokemon.name.toLowerCase().contains(query);
+    }).toList();
+  });
+}
 
   @override
   Widget build(BuildContext context) {
@@ -165,6 +190,14 @@ class _MyHomePageState extends State<MyHomePage> {
               tooltip: 'Search',
               onPressed: null,
             ),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter a pokemon here',
+              ),
+            ),
+
             Expanded(
               child: FutureBuilder<List<Pokemon>>(
                 future: futurePokemons, // cached in initState
@@ -180,9 +213,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   final pokemons = snapshot.data!;
 
                   return ListView.builder(
-                    itemCount: pokemons.length,
+                    itemCount: _filteredPokemons.length,
                     itemBuilder: (context, index) {
-                      return PokeCard(pokemon: pokemons[index]);
+                      return PokeCard(pokemon: _filteredPokemons[index]);
                     },
                   );
                 },
