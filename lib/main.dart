@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
-  runApp(const MyApp());
+  runApp(const PokemonApp());
 }
 
 Future<List<Pokemon>> fetchAllPokemonDetails() async {
@@ -56,16 +56,22 @@ class Pokemon {
   }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class PokemonApp extends StatefulWidget {
+  const PokemonApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<PokemonApp> createState() => _PokemonAppState();
+}
+
+class _PokemonAppState extends State<PokemonApp> {
+  final RouterDelegate<Object> delegate = MyRouterDelegate();
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Pokemon app',
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.green)),
-      home: const MyHomePage(title: 'Pokemon Application'),
+      routerDelegate: delegate,
     );
   }
 }
@@ -114,35 +120,39 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void toggleLikeCurPokemon(int id) {
-  setState(() {
-    // we update the value of isFavorited pokemons
-    _allPokemons = _allPokemons.map((pokemon) {
-      if (pokemon.id == id) {
-        return Pokemon(
-          id: pokemon.id,
-          name: pokemon.name,
-          imageUrl: pokemon.imageUrl,
-          isFavorited: !pokemon.isFavorited,
-        );
-      }
-      return pokemon;
-    }).toList();
+    setState(() {
+      // we update the value of isFavorited pokemons
+      _allPokemons = _allPokemons.map((pokemon) {
+        if (pokemon.id == id) {
+          return Pokemon(
+            id: pokemon.id,
+            name: pokemon.name,
+            imageUrl: pokemon.imageUrl,
+            isFavorited: !pokemon.isFavorited,
+          );
+        }
+        return pokemon;
+      }).toList();
 
-    _likedPokemons = _allPokemons.where((pokemon) => pokemon.isFavorited).toList();
+      _likedPokemons = _allPokemons
+          .where((pokemon) => pokemon.isFavorited)
+          .toList();
 
-    _filteredPokemons = _filteredPokemons.map((pokemon) {
-      if (pokemon.id == id) {
-        return Pokemon(
-          id: pokemon.id,
-          name: pokemon.name,
-          imageUrl: pokemon.imageUrl,
-          isFavorited: !pokemon.isFavorited,
-        );
-      }
-      return pokemon;
-    }).toList();
-  });
-}
+      _filteredPokemons = _filteredPokemons.map((pokemon) {
+        if (pokemon.id == id) {
+          return Pokemon(
+            id: pokemon.id,
+            name: pokemon.name,
+            imageUrl: pokemon.imageUrl,
+            isFavorited: !pokemon.isFavorited,
+          );
+        }
+        return pokemon;
+      }).toList();
+    });
+  }
+
+  final RouterDelegate<Object> delegate = MyRouterDelegate();
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +162,12 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: .center,
           children: [
+            TextButton(
+              onPressed: () {
+                MyRouterDelegate.of(context).showDetailPage = true;
+              },
+              child: const Text('Go to details'),
+            ),
             const IconButton(
               icon: Icon(Icons.search),
               tooltip: 'Search',
@@ -181,9 +197,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     itemCount: _filteredPokemons.length,
                     itemBuilder: (context, index) {
                       final pokemon = _filteredPokemons[index];
-                      return PokeCard(pokemon: pokemon, onLikeToggle: () {
-                        toggleLikeCurPokemon(pokemon.id);
-                      });
+                      return PokeCard(
+                        pokemon: pokemon,
+                        onLikeToggle: () {
+                          toggleLikeCurPokemon(pokemon.id);
+                        },
+                      );
                     },
                   );
                 },
@@ -196,10 +215,91 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
+class MyRouterDelegate extends RouterDelegate<Object>
+    with PopNavigatorRouterDelegateMixin<Object>, ChangeNotifier {
+  // This example doesn't use RouteInformationProvider.
+  @override
+  Future<void> setNewRoutePath(Object configuration) async =>
+      throw UnimplementedError();
+
+  @override
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  static MyRouterDelegate of(BuildContext context) =>
+      Router.of(context).routerDelegate as MyRouterDelegate;
+
+  bool get showDetailPage => _showDetailPage;
+  bool _showDetailPage = false;
+  set showDetailPage(bool value) {
+    if (_showDetailPage == value) {
+      return;
+    }
+    _showDetailPage = value;
+    notifyListeners();
+  }
+
+  Future<bool> _showConfirmDialog() async {
+    return await showDialog<bool>(
+          context: navigatorKey.currentContext!,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Are you sure?'),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                ),
+                TextButton(
+                  child: const Text('Confirm'),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  List<Page<Object?>> _getPages() {
+    return <Page<Object?>>[
+      const MaterialPage<void>(
+        key: ValueKey<String>('home'),
+        child: MyHomePage(title: 'home'),
+      ),
+      if (showDetailPage)
+        MaterialPage<void>(
+          key: const ValueKey<String>('details'),
+          child: const _DetailsPage(title: 'details',),
+        ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      key: navigatorKey,
+      pages: _getPages(),
+      onDidRemovePage: (Page<Object?> page) {
+        assert(page.key == const ValueKey<String>('details'));
+        showDetailPage = false;
+      },
+    );
+  }
+}
+
 class PokeCard extends StatelessWidget {
   final Pokemon pokemon;
   final VoidCallback onLikeToggle;
-  const PokeCard({super.key, required this.pokemon, required this.onLikeToggle});
+  const PokeCard({
+    super.key,
+    required this.pokemon,
+    required this.onLikeToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -230,12 +330,155 @@ class PokeCard extends StatelessWidget {
           const SizedBox(width: 12),
 
           IconButton(
-            icon: Icon(pokemon.isFavorited ? Icons.favorite : Icons.favorite_border_outlined),
+            icon: Icon(
+              pokemon.isFavorited
+                  ? Icons.favorite
+                  : Icons.favorite_border_outlined,
+            ),
             tooltip: 'Like',
             onPressed: onLikeToggle,
           ),
           Text(pokemon.name, style: const TextStyle(color: Colors.white)),
         ],
+      ),
+    );
+  }
+}
+
+class _DetailsPage extends StatefulWidget {
+  const _DetailsPage({required this.title});
+
+  final String title;
+
+  @override
+  State<_DetailsPage> createState() => _DetailsPageState();
+}
+
+class _DetailsPageState extends State<_DetailsPage> {
+  late TextEditingController _searchController;
+  List<Pokemon> _allPokemons = [];
+  List<Pokemon> _filteredPokemons = [];
+  List<Pokemon> _likedPokemons = [];
+  late Future<List<Pokemon>> futurePokemons;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    futurePokemons = fetchAllPokemonDetails();
+
+    futurePokemons.then((list) {
+      setState(() {
+        _allPokemons = list;
+        _filteredPokemons = list;
+      });
+    });
+
+    _searchController.addListener(() {
+      filterPokemons();
+    });
+  }
+
+  void filterPokemons() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredPokemons = _allPokemons.where((pokemon) {
+        return pokemon.name.toLowerCase().contains(query);
+      }).toList();
+    });
+  }
+
+  void toggleLikeCurPokemon(int id) {
+    setState(() {
+      // we update the value of isFavorited pokemons
+      _allPokemons = _allPokemons.map((pokemon) {
+        if (pokemon.id == id) {
+          return Pokemon(
+            id: pokemon.id,
+            name: pokemon.name,
+            imageUrl: pokemon.imageUrl,
+            isFavorited: !pokemon.isFavorited,
+          );
+        }
+        return pokemon;
+      }).toList();
+
+      _likedPokemons = _allPokemons
+          .where((pokemon) => pokemon.isFavorited)
+          .toList();
+
+      _filteredPokemons = _filteredPokemons.map((pokemon) {
+        if (pokemon.id == id) {
+          return Pokemon(
+            id: pokemon.id,
+            name: pokemon.name,
+            imageUrl: pokemon.imageUrl,
+            isFavorited: !pokemon.isFavorited,
+          );
+        }
+        return pokemon;
+      }).toList();
+    });
+  }
+
+  final RouterDelegate<Object> delegate = MyRouterDelegate();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(backgroundColor: Colors.amber, title: Text(widget.title)),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: .center,
+          children: [
+            TextButton(
+              onPressed: () {
+                MyRouterDelegate.of(context).showDetailPage = true;
+              },
+              child: const Text('Go to details'),
+            ),
+            const IconButton(
+              icon: Icon(Icons.search),
+              tooltip: 'Search',
+              onPressed: null,
+            ),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter a pokemon here',
+              ),
+            ),
+
+            Expanded(
+              child: FutureBuilder<List<Pokemon>>(
+                future: futurePokemons, // cached in initState
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+
+                  return ListView.builder(
+                    itemCount: _filteredPokemons.length,
+                    itemBuilder: (context, index) {
+                      final pokemon = _filteredPokemons[index];
+                      return PokeCard(
+                        pokemon: pokemon,
+                        onLikeToggle: () {
+                          toggleLikeCurPokemon(pokemon.id);
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
