@@ -30,7 +30,7 @@ class _PokemonAppState extends State<PokemonApp> {
 
 class MyRouterDelegate extends RouterDelegate<Object>
     with PopNavigatorRouterDelegateMixin<Object>, ChangeNotifier {
-  // This example doesn't use RouteInformationProvider.
+
   @override
   Future<void> setNewRoutePath(Object configuration) async =>
       throw UnimplementedError();
@@ -51,16 +51,33 @@ class MyRouterDelegate extends RouterDelegate<Object>
     notifyListeners();
   }
 
+  List<Pokemon> allPokemons = [];
+
+  void setPokemons(List<Pokemon> list) {
+    allPokemons = list;
+    notifyListeners();
+  }
+
   List<Page<Object?>> _getPages() {
     return <Page<Object?>>[
-      const MaterialPage<void>(
+      MaterialPage<void>(
         key: ValueKey<String>('home'),
-        child: MyHomePage(title: 'home'),
+        child: MyHomePage(title: 'home', 
+        allPokemonsCallback: (list) {
+            allPokemons = list;
+            notifyListeners();
+          },),
       ),
       if (showDetailPage)
         MaterialPage<void>(
           key: const ValueKey<String>('details'),
-          child: DetailsPage(title: 'details',),
+          child: DetailsPage(title: 'details',
+          allPokemonsCallback: (list) {
+            allPokemons = list;
+            notifyListeners();
+          },
+          allPokemons: allPokemons,
+          favPokemons: allPokemons.where((p) => p.isFavorited).toList(),), // we display only the favorited pokemons
         ),
     ];
   }

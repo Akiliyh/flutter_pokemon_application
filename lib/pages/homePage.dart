@@ -4,9 +4,14 @@ import '../widgets/pokeCard.dart';
 import '../main.dart';
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({
+    super.key,
+    required this.title,
+    required this.allPokemonsCallback,
+  });
 
   final String title;
+  final ValueChanged<List<Pokemon>> allPokemonsCallback;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -17,7 +22,9 @@ class _MyHomePageState extends State<MyHomePage> {
   List<Pokemon> _allPokemons = [];
   List<Pokemon> _filteredPokemons = [];
   List<Pokemon> _likedPokemons = [];
+  bool _isInit = false;
   late Future<List<Pokemon>> futurePokemons;
+  MyRouterDelegate get router => MyRouterDelegate.of(context);
 
   @override
   void initState() {
@@ -28,7 +35,9 @@ class _MyHomePageState extends State<MyHomePage> {
     futurePokemons.then((list) {
       setState(() {
         _allPokemons = list;
+        router.allPokemons = list;
         _filteredPokemons = list;
+        widget.allPokemonsCallback(_allPokemons);
       });
     });
 
@@ -37,10 +46,37 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_isInit) {
+      futurePokemons = fetchAllPokemonDetails();
+
+      futurePokemons.then((list) {
+        router.allPokemons = list;
+
+        setState(() {
+          _filteredPokemons = list;
+        });
+      });
+
+      router.addListener(_onRouterChanged);
+
+      _isInit = true;
+    }
+  }
+
+  void _onRouterChanged() {
+    setState(() {
+      filterPokemons(); // refresh list from router
+    });
+  }
+
   void filterPokemons() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      _filteredPokemons = _allPokemons.where((pokemon) {
+      _filteredPokemons = router.allPokemons.where((pokemon) {
         return pokemon.name.toLowerCase().contains(query);
       }).toList();
     });
@@ -49,7 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void toggleLikeCurPokemon(int id) {
     setState(() {
       // we update the value of isFavorited pokemons
-      _allPokemons = _allPokemons.map((pokemon) {
+      _allPokemons = router.allPokemons.map((pokemon) {
         if (pokemon.id == id) {
           return Pokemon(
             id: pokemon.id,
@@ -61,7 +97,7 @@ class _MyHomePageState extends State<MyHomePage> {
         return pokemon;
       }).toList();
 
-      _likedPokemons = _allPokemons
+      _likedPokemons = router.allPokemons
           .where((pokemon) => pokemon.isFavorited)
           .toList();
 
@@ -76,6 +112,8 @@ class _MyHomePageState extends State<MyHomePage> {
         }
         return pokemon;
       }).toList();
+
+      widget.allPokemonsCallback(_allPokemons);
     });
   }
 
