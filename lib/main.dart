@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'widgets/pokeCard.dart';
-import 'pages/favPage.dart';
-import 'pages/homePage.dart';
-import 'api/pokemonAPI.dart';
+import 'pages/fav_page.dart';
+import 'pages/home_page.dart';
+import 'api/pokemon_api.dart';
 
 void main() {
   runApp(const PokemonApp());

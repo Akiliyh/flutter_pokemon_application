@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../widgets/pokeCard.dart';
+import '../widgets/poke_card.dart';
 import '../main.dart';
-import '../api/pokemonAPI.dart';
+import '../api/pokemon_api.dart';
 
 class FavPage extends StatefulWidget {
   final String title;

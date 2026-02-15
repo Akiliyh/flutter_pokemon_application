@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../api/pokemonAPI.dart';
-import '../widgets/pokeCard.dart';
+import '../api/pokemon_api.dart';
+import '../widgets/poke_card.dart';
 import '../main.dart';
 
 class MyHomePage extends StatefulWidget {
