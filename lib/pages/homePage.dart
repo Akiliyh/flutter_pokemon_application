@@ -21,8 +21,6 @@ class _MyHomePageState extends State<MyHomePage> {
   late TextEditingController _searchController;
   List<Pokemon> _allPokemons = [];
   List<Pokemon> _filteredPokemons = [];
-  List<Pokemon> _likedPokemons = [];
-  bool _isInit = false;
   late Future<List<Pokemon>> futurePokemons;
   MyRouterDelegate get router => MyRouterDelegate.of(context);
 
@@ -49,25 +47,12 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    if (!_isInit) {
-      futurePokemons = fetchAllPokemonDetails();
-
-      futurePokemons.then((list) {
-        router.allPokemons = list;
-
-        setState(() {
-          _filteredPokemons = list;
-        });
-      });
-
-      router.addListener(_onRouterChanged);
-
-      _isInit = true;
-    }
+    router.addListener(_onRouterChanged);
   }
 
   void _onRouterChanged() {
+    if (!mounted) return;
+
     setState(() {
       filterPokemons(); // refresh list from router
     });
@@ -97,10 +82,6 @@ class _MyHomePageState extends State<MyHomePage> {
         return pokemon;
       }).toList();
 
-      _likedPokemons = router.allPokemons
-          .where((pokemon) => pokemon.isFavorited)
-          .toList();
-
       _filteredPokemons = _filteredPokemons.map((pokemon) {
         if (pokemon.id == id) {
           return Pokemon(
@@ -129,9 +110,16 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             TextButton(
               onPressed: () {
-                MyRouterDelegate.of(context).showDetailPage = true;
+                MyRouterDelegate.of(context).showFavPage = true;
               },
-              child: const Text('Go to details'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('See your favorite pokemons'),
+                  SizedBox(width: 8),
+                  Icon(Icons.favorite),
+                ],
+              ),
             ),
             const IconButton(
               icon: Icon(Icons.search),

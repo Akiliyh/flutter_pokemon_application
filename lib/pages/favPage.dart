@@ -3,19 +3,19 @@ import '../widgets/pokeCard.dart';
 import '../main.dart';
 import '../api/pokemonAPI.dart';
 
-class DetailsPage extends StatefulWidget {
+class FavPage extends StatefulWidget {
   final String title;
   final List<Pokemon> favPokemons; // only favorited ones
   final ValueChanged<List<Pokemon>> allPokemonsCallback;
   final List<Pokemon> allPokemons;
 
-  const DetailsPage({super.key, required this.title, required this.allPokemonsCallback, required this.allPokemons, required this.favPokemons});
+  const FavPage({super.key, required this.title, required this.allPokemonsCallback, required this.allPokemons, required this.favPokemons});
 
   @override
-  State<DetailsPage> createState() => _DetailsPageState();
+  State<FavPage> createState() => _FavPageState();
 }
 
-class _DetailsPageState extends State<DetailsPage> {
+class _FavPageState extends State<FavPage> {
   List<Pokemon> _allPokemons = [];
   late Future<List<Pokemon>> futurePokemons;
   late List<Pokemon> _favPokemons;
@@ -68,7 +68,7 @@ class _DetailsPageState extends State<DetailsPage> {
                   onLikeToggle: () {
                     toggleLikeCurPokemon(pokemon.id);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Unfavorited" + pokemon.name)),
+                      SnackBar(content: Text("Unfavorited " + pokemon.name)),
                     );
                   },
                 );

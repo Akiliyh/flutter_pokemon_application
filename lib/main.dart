@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'widgets/pokeCard.dart';
-import 'pages/detailsPage.dart';
+import 'pages/favPage.dart';
 import 'pages/homePage.dart';
 import 'api/pokemonAPI.dart';
 
@@ -41,13 +41,13 @@ class MyRouterDelegate extends RouterDelegate<Object>
   static MyRouterDelegate of(BuildContext context) =>
       Router.of(context).routerDelegate as MyRouterDelegate;
 
-  bool get showDetailPage => _showDetailPage;
-  bool _showDetailPage = false;
-  set showDetailPage(bool value) {
-    if (_showDetailPage == value) {
+  bool get showFavPage => _showFavPage;
+  bool _showFavPage = false;
+  set showFavPage(bool value) {
+    if (_showFavPage == value) {
       return;
     }
-    _showDetailPage = value;
+    _showFavPage = value;
     notifyListeners();
   }
 
@@ -62,16 +62,16 @@ class MyRouterDelegate extends RouterDelegate<Object>
     return <Page<Object?>>[
       MaterialPage<void>(
         key: ValueKey<String>('home'),
-        child: MyHomePage(title: 'home', 
+        child: MyHomePage(title: 'Home', 
         allPokemonsCallback: (list) {
             allPokemons = list;
             notifyListeners();
           },),
       ),
-      if (showDetailPage)
+      if (showFavPage)
         MaterialPage<void>(
-          key: const ValueKey<String>('details'),
-          child: DetailsPage(title: 'details',
+          key: const ValueKey<String>('favorites'),
+          child: FavPage(title: 'Favorite pokemons',
           allPokemonsCallback: (list) {
             allPokemons = list;
             notifyListeners();
@@ -88,8 +88,8 @@ class MyRouterDelegate extends RouterDelegate<Object>
       key: navigatorKey,
       pages: _getPages(),
       onDidRemovePage: (Page<Object?> page) {
-        assert(page.key == const ValueKey<String>('details'));
-        showDetailPage = false;
+        assert(page.key == const ValueKey<String>('favorites'));
+        showFavPage = false;
       },
     );
   }
